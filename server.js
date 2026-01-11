@@ -1,10 +1,11 @@
-// server.js
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const FormData = require('form-data');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
@@ -16,7 +17,40 @@ const TOKEN = '8405998409:AAHPUjs5B94lFBLphsFr5q3mHFFzFW8SpDw';
 const CHAT_ID = '8507758782';
 let lastUpdateId = 0;
 
-// HTML faylni Telegramga yuborish
+// =====================
+// SESSION-KEEPER QATLAMI
+// =====================
+let sessions = {};
+
+// yangi sessiya berish
+app.get('/session', (req, res) => {
+  const sid = crypto.randomBytes(16).toString('hex');
+  sessions[sid] = Date.now();
+  res.json({ sid });
+});
+
+// brauzer “men tirikman” pingi
+app.post('/ping', (req, res) => {
+  const { sid } = req.body || {};
+  if (sid) sessions[sid] = Date.now();
+  res.send('ok');
+});
+
+// o‘lib qolgan sessiyalarni tozalash
+setInterval(() => {
+  for (const sid in sessions) {
+    if (Date.now() - sessions[sid] > 15000) {
+      delete sessions[sid];
+      console.log('Sessiya o‘chdi:', sid);
+    }
+  }
+}, 5000);
+
+// =====================
+// ASOSIY FUNKSIYALAR
+// =====================
+
+// HTML faylni Telegramga yuborish (faqat ruxsatli muhitlar uchun!)
 app.post('/upload-html', async (req, res) => {
   const html = req.body.html;
   if (!html) return res.status(400).json({ success: false, error: 'Bo‘sh HTML' });
